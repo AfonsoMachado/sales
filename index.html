@@ -9,10 +9,12 @@
 </head>
 
 <body>
-    <div id="app">  
+
+    <div id="app">
         <div class="container">
             <h1 class="mt-3">{{ title }}</h1>
 
+            <!-- Tabela renderizada somente de sales by product estiver setado -->
             <table class="mt-5 table" v-if="salesByProduct">
                 <thead>
                     <tr>
@@ -22,8 +24,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- exibindo as vendas. salesByProduct por ser um valor computed tem que ser acessado como um valor e não como uma função -->
                     <tr v-for="(sale, index) in salesByProduct">
-                        <td>#{{ index + 1 }}</td>
+                        <td>${{ index + 1 }}</td>
                         <td>{{ sale.name }}</td>
                         <td v-money="'R$'">{{ sale.value }}</td>
                     </tr>
@@ -36,75 +39,97 @@
                     </tr>
                 </tfoot>
             </table>
+
             <!-- <table class="mt-5 table">
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Nome</th>
                         <th>Preço</th>
-                        <th>Qtde</th>
+                        <th>Quantidade</th>
                         <th>Data</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="sale in sales">
-                        <td>{{ sale.id }}</td>
-                        <td>{{ sale.name }}</td>
-                        <td v-money="'R$'">{{ sale.price }}</td>
-                        <td>{{ sale.qtde }}</td>
-                        <td>{{ sale.date }}</td>
+                        <td>{{sale.id}}</td>
+                        <td>{{sale.name}}</td>
+                        <td v-money="'R$'">{{sale.price}}</td>
+                        <td>{{sale.qtde}}</td>
+                        <td>{{sale.date}}</td>
                     </tr>
                 </tbody>
             </table> -->
         </div>
     </div>
+
     <script>
+
+        // Criando uma diretiva Vue para normalizar o formato do preço
         Vue.directive('money', {
+            // Chamado quando o elemento foi inserido da DOM
             inserted(el, binding) {
-                const amount = parseFloat(el.innerHTML).toFixed(2)
-                    .replace('.', ',')
-                    .replace(/(\d)(?=(\d{3})+\,)/g, '$1.')
+                const amount = parseFloat(el.innerHTML).toFixed(2).replace('.',',').replace(/(\d)(?=(\d{3})+\,)/g, '$1.')
+
                 el.innerHTML = `${binding.value} ${amount}`
             }
         })
 
         new Vue({
-            el: '#app',
+            el: "#app",
             data: {
-                title: 'Relatório de Vendas',
-                sales: null
+                title: "Relatório de Vendas",
+                sales: null // Objeto com todas as vendas
             },
             methods: {
+                // Requsição ajax para capturar as vendas
                 getSales() {
                     fetch('/data/sales.json')
-                        .then(resp => resp.json())
+                        .then(resp => resp.json()) //primise contendo os dados do json
                         .then(data => this.sales = data)
                 },
+
+                // Total geral
                 calculateTotal(sales) {
                     if (!sales) return 0
+
+                    // Somando todas as vendas de um produto
                     return sales.reduce((total, sale) => total + sale.value, 0)
                 }
+                
             },
             computed: {
+                //Total por produto
                 salesByProduct() {
+                    // Verificação se não tiverem vendas
                     if (!this.sales) return null
 
                     const salesByProduct = this.sales.reduce((grouped, sale) => {
+                        // Se o elemento não tem a propriedade sales.name, então esse é o primeiro prduto a ser isnerido
                         if (!grouped.hasOwnProperty(sale.name)) {
+                            // Criando um objeto com o nome em sales.name como chave
+                            // Então para essa chave é criado tambem um onjeto com os parametros name e value
                             grouped[sale.name] = {
                                 name: sale.name,
                                 value: sale.price * sale.qtde
                             }
+                            // Retornando o objeto agrupado com um atributo a mais
                             return grouped
                         }
 
+                        // Ao encontrar um elemento ja existente, acrescenda o valor referente no mesmo
                         grouped[sale.name].value += sale.price * sale.qtde
                         return grouped
-                    }, {})
-
+                    }, {}) // Valor inicial é um objeto vazio
+                
+                    console.log(Object.values(salesByProduct))
+                    //Retornando somente oos valores do objeto
                     return Object.values(salesByProduct)
+
                 }
+
             },
+            // Chamada quando a instance de Vue montar um template
             mounted() {
                 this.getSales()
             }
